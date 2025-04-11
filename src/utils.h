@@ -7,4 +7,4 @@
         goto defer;     \
     } while (0)
 
-#endif UTILS_H_
+#endif // UTILS_H_

@@ -1,6 +1,7 @@
 #include "siphash.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "tests.h"
 #include <assert.h>
 
 typedef unsigned short u16;
@@ -13,19 +14,17 @@ typedef int err_t;
 #define Ok 0
 #define Err -1
 
-#define SET_HASH_HEY 0x05d0
 #define EXE_NAME "siphash"
 
 #define HASHER_LOG_ERRORS
 #define HASHER_ENABLE_STDOUT
 
-#define HEW_KEY_BUF_LEN 16
+#define HEX_KEY_BUF_LEN 16
 
 #define HASHER_AK_SIPHASH 0
 
-static u8 hex_key_buf[HEW_KEY_BUF_LEN];
+static u8 hex_key_buf[HEX_KEY_BUF_LEN];
 typedef size_t usize;
-
 
 #if !defined(EPRINTFLN_TAG)
   #define EPRINTFLN_TAG "Hasher.Error"

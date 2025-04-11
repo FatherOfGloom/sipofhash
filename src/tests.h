@@ -5,6 +5,7 @@
 #include "stdio.h"
 #include "utils.h"
 #include "siphash.h"
+#include "assert.h"
 
 #define b_to_cstr(x) (x ? "true" : "false")
 #define HASH_BUF_SIZE 8
@@ -20,12 +21,6 @@ int sip_test(void) {
     int result = 0;
 
     assert(sizeof(sip_test_key) == 16 && "invalid hash key size");
-
-#ifdef _WIN32
-    system("powershell -ExecutionPolicy Bypass -File ..\\mover.ps1");
-#else // TODO
-  #error "Brother... it's a win32 slop"
-#endif
 
     const char* input_1 = "test input data";
     const char* input_2 = "test input data";
@@ -46,14 +41,25 @@ int sip_test(void) {
 
     printf("hash1 == hash2:\n%s", b_to_cstr(hash_eq_uint64_t(hash_buf_1, hash_buf_2)));
 
-    FILE* f = fopen("hash.out", "w");
+    FILE* f = fopen("hash_test.out", "w");
 
     if (f == NULL) {
         return_defer(-1);
     }
 
     (void)fwrite(hash_buf_1, sizeof(hash_buf_1), 1, f);
+
 defer:
     if (f) fclose(f);
+
+    if (result == 0) {
+#ifdef _WIN32
+        system(
+            "powershell -ExecutionPolicy Bypass -Command \"& { ..\\mover.ps1 | Out-Host }\"");
+#else  // TODO
+  #error "Brother... it's a win32 slop"
+#endif
+    }
+    return result;
 }
 #endif  // TESTS_H_
