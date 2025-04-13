@@ -70,17 +70,17 @@ defer:
     return result;
 }
 
-void _print_usage(void) {
+void _eprint_usage(void) {
     fprintf(stderr, "Usage: %s [hexadecimal-key] [target-data]\n", EXE_NAME);
 }
 
-#ifdef HASHER_ENABLE_STDOUT
-#define print_usage _print_usage 
-#else
-#define print_usage __preproc_discard
-#endif
-
 #define __preproc_discard()
+
+#ifdef HASHER_ENABLE_STDOUT
+#define eprint_usage _eprint_usage 
+#else
+#define eprint_usage __preproc_discard
+#endif
 
 i32 main(i32 argc, char* argv[]) {
     err_t result = Ok;
@@ -89,7 +89,7 @@ i32 main(i32 argc, char* argv[]) {
     return Ok;
 
     if (argc != 3) {
-        print_usage();
+        eprint_usage();
         exit(1);
     }
 
