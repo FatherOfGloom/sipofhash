@@ -3,6 +3,8 @@
 #include "stdlib.h"
 #include "tests.h"
 #include <assert.h>
+#include <gmp.h>
+#include <ctype.h>
 
 typedef unsigned short u16;
 typedef unsigned char u8;
@@ -17,7 +19,7 @@ typedef int err_t;
 #define EXE_NAME "siphash"
 
 #define HASHER_LOG_ERRORS
-#define HASHER_ENABLE_STDOUT
+#define HASHER_ENABLE_CLI
 
 #define HEX_KEY_BUF_LEN 16
 
@@ -76,24 +78,118 @@ void _eprint_usage(void) {
 
 #define __preproc_discard()
 
-#ifdef HASHER_ENABLE_STDOUT
+#ifdef HASHER_ENABLE_CLI
 #define eprint_usage _eprint_usage 
 #else
 #define eprint_usage __preproc_discard
 #endif
 
-i32 main(i32 argc, char* argv[]) {
-    err_t result = Ok;
+typedef struct Slice {
+    void* raw;
+    usize len;
+} Slice;
 
-    sip_test();
-    return Ok;
+Slice slice_from_cstr(const char* cstr) {
+    return (Slice) {
+        .raw = (void*)cstr,
+        .len = strlen(cstr),
+    };
+}
 
-    if (argc != 3) {
-        eprint_usage();
-        exit(1);
+Slice slice_from_buf(const u8 buf[], usize buf_len) {
+    return (Slice) {
+        .raw = (void*)buf,
+        .len = buf_len,
+    };
+}
+
+#define hasher_assert(predicate, errmsg) { if (!(predicate)) { hasher_log_e(errmsg); exit(1); }}
+
+u8 hex_char_to_u8(char c) {
+    if (c > 127) {
+        hasher_assert(0, "The input string must be ASCII only");
+        return 0;
     }
 
-    hasher_log_e("test '%s %d'", "lol", 3);
+    c = toupper(c);
+
+    if (c > 64 && c < 71) {
+        return c - 55;
+    }
+
+    if (c > 47 && c < 58) {
+        return c - 48;
+    }
+
+    hasher_assert(0, "The input must be a valid hexadecimal value");
+    return 0;
+}
+
+void parse_hex_16_byte_key(const Slice* key_cstr, Slice* out_buf) {
+    hasher_assert(out_buf->len == 16, "Output buffer must be 16 bytes");
+    hasher_assert(key_cstr->len == 16 * 2 || key_cstr->len == 16 * 2 + 2, "Input string must be 18 or 16 chars long");
+    
+    for (i32 i = 0; i < out_buf->len; ++i) {
+        char c_high = *((char*)key_cstr->raw + i * 2);
+        char c_low = *((char*)key_cstr->raw + i * 2 + 1);
+
+        u8 c_high_out = hex_char_to_u8(c_high);
+        u8 c_low_out = hex_char_to_u8(c_low);
+
+        *((char*)out_buf->raw + i) = c_high_out << 4 | c_low_out;
+    }
+}
+
+int hash_to_file(const char* file_path, Slice* s) {
+    err_t result = Ok;
+
+    FILE* f = fopen(file_path, "w");
+
+    if (f == NULL) {
+        return_defer(-1);
+    }
+
+    (void)fwrite(s->raw, s->len, 1, f);
+
+defer:
+    if (f) fclose(f);
+
+    if (result == 0) {
+#ifdef _WIN32
+        system(
+            "powershell -ExecutionPolicy Bypass -Command \"& { ..\\mover.ps1 | Out-Host }\"");
+#else  // TODO
+  #error "Brother... it's a win32 slop"
+#endif
+    }
+    return result;
+}
+
+i32 main(i32 argc, char* argv[]) {
+    err_t result = Ok;
+    Slice out_key_buf =  {0};
+    Slice input_key_cstr = {0}; 
+    Slice hashed_val_buf = {0};
+
+    // if (argc != 3) {
+    //     eprint_usage();
+    //     exit(1);
+    // }
+
+    char* key = "7b173d3eb6afd82d04d70256b4bf5a98";
+    char* value = "value";
+
+    out_key_buf = slice_from_buf((u8[16]) {0}, 16);
+    input_key_cstr = slice_from_cstr(key);
+    hashed_val_buf = slice_from_buf((u8[16]) {0}, 16);
+
+    parse_hex_16_byte_key(&input_key_cstr, &out_key_buf);
+
+    hasher_run_ex(out_key_buf.raw, out_key_buf.len, value, strlen(value),
+                  hashed_val_buf.raw, hashed_val_buf.len, HASHER_AK_SIPHASH);
+
+    hash_to_file("hash_test.out", &hashed_val_buf);
+
 defer:
     return result;
 } 
